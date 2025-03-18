@@ -1,0 +1,15 @@
+package:
+  name: screeps-arena
+  dependencies:
+    - arrays
+    - console
+    - effect
+    - prelude
+    - unsafe-coerce
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  packageSet:
+    registry: 63.5.0
+  extraPackages: {}
