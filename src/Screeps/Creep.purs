@@ -6,16 +6,16 @@ import Effect (Effect)
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign (Foreign)
 import Screeps.GameObject (GameObject)
-import Screeps.Inheritance (class Inherits)
+import Screeps.Inheritance (class DirectlyInherits, class Inherits)
 import Screeps.Store (Store)
 import Screeps.Structure (Structure)
 import Unsafe.Coerce (unsafeCoerce)
 
 data Creep
 
-instance Inherits Creep GameObject where
-  upcast = unsafeCoerce
-  downcast = unsafeCoerce
+instance DirectlyInherits Creep GameObject where
+  directUpcast = unsafeCoerce
+  directDowncast = unsafeCoerce
 
 foreign import withdrawEnergyImpl :: EffectFn2 Creep Foreign Unit
 foreign import transferEnergyImpl :: EffectFn2 Creep Foreign Unit

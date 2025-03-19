@@ -5,20 +5,21 @@ import Prelude
 import Effect (Effect)
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Screeps.GameObject (GameObject)
-import Screeps.Inheritance (class Inherits, upcast)
+import Screeps.Inheritance (class DirectlyInherits, class Inherits, upcast)
 import Screeps.Store (Store)
 import Screeps.Structure (Structure)
 import Unsafe.Coerce (unsafeCoerce)
 
+data OwnedStructure
 data StructureTower
 
-instance Inherits StructureTower GameObject where
-  upcast = unsafeCoerce
-  downcast = unsafeCoerce
+instance DirectlyInherits StructureTower OwnedStructure where
+  directUpcast = unsafeCoerce
+  directDowncast = unsafeCoerce
 
-instance Inherits StructureTower Structure where
-  upcast = unsafeCoerce
-  downcast = unsafeCoerce
+instance DirectlyInherits OwnedStructure Structure where
+  directUpcast = unsafeCoerce
+  directDowncast = unsafeCoerce
 
 store :: StructureTower -> Store
 store tower = (unsafeCoerce tower).store

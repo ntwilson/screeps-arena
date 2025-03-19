@@ -9,7 +9,7 @@ import Effect.Exception (throw)
 import Screeps.Creep (Creep, my, transferEnergy, withdrawEnergy)
 import Screeps.Creep as Creep
 import Screeps.GameObject (GameObject)
-import Screeps.Inheritance (class Inherits)
+import Screeps.Inheritance (class DirectlyInherits, class Inherits)
 import Screeps.Store as Store
 import Screeps.StructureContainer (StructureContainer)
 import Screeps.StructureTower (StructureTower, attack)
@@ -18,9 +18,9 @@ import Unsafe.Coerce (unsafeCoerce)
 
 data Flag
 
-instance Inherits Flag GameObject where
-  upcast = unsafeCoerce
-  downcast = unsafeCoerce
+instance DirectlyInherits Flag GameObject where
+  directUpcast = unsafeCoerce
+  directDowncast = unsafeCoerce
 
 foreign import getCreeps :: Effect (Array Creep)
 foreign import getFlags :: Effect (Array Flag)
