@@ -6,3 +6,11 @@ export function getCreeps() {
 export function getFlags() { 
   return utils.getObjectsByPrototype(prototypes.Flag);
 }
+
+export function getTowers() {
+  return utils.getObjectsByPrototype(prototypes.StructureTower);
+}
+
+export function getContainers() {
+  return utils.getObjectsByPrototype(prototypes.StructureContainer);
+}

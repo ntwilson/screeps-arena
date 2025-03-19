@@ -4,6 +4,8 @@ package:
     - arrays
     - console
     - effect
+    - exceptions
+    - foreign
     - prelude
     - unsafe-coerce
   test:
