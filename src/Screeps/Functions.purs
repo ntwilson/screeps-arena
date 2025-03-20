@@ -2,6 +2,8 @@ module Screeps.Functions where
 
 import Prelude
 
+import Data.Function.Uncurried (Fn2, runFn2)
+import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
 import Foreign (Foreign, unsafeToForeign)
@@ -55,3 +57,11 @@ hitsImpl x = (unsafeCoerce x).hits
 
 hitsMaxImpl :: Foreign -> Int
 hitsMaxImpl x = (unsafeCoerce x).hitsMax
+
+foreign import findClosestByPathImpl :: ∀ s t. Fn2 s (Array t) t
+
+findClosestByPath :: ∀ s t. Inherits s GameObject => Inherits t GameObject => s -> Array t -> Maybe t
+findClosestByPath source targets = 
+  case targets of 
+    [] -> Nothing
+    _ -> Just $ runFn2 findClosestByPathImpl source targets 

@@ -1,5 +1,8 @@
 module Screeps.GameObjects where
 
+import Prelude
+
+import Data.Function.Uncurried (Fn2, runFn2)
 import Screeps.Inheritance (class Inherits, class Prototype, defaultDowncast, defaultUpcast)
 
 data GameObject
@@ -9,9 +12,11 @@ data CreepPrototype
 foreign import creepPrototype :: CreepPrototype
 instance Prototype CreepPrototype Creep
 
+instance Eq Creep where eq a b = runFn2 creepEq a b
 instance Inherits Creep GameObject where
   upcast = defaultUpcast
   downcast = defaultDowncast creepPrototype
+foreign import creepEq :: Fn2 Creep Creep Boolean
 
 data Structure
 data StructurePrototype
@@ -57,3 +62,12 @@ data Store
 data StorePrototype
 foreign import storePrototype :: StorePrototype
 instance Prototype StorePrototype Store
+
+data Spawn
+data SpawnPrototype
+foreign import spawnPrototype :: SpawnPrototype
+instance Prototype SpawnPrototype Spawn
+
+instance Inherits Spawn GameObject where
+  upcast = defaultUpcast
+  downcast = defaultDowncast spawnPrototype
