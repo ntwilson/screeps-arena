@@ -1,5 +1,5 @@
 module Screeps.Store where
 
-data Store
+import Screeps.GameObjects (Store)
 
 foreign import resourceEnergy :: Store -> Int
