@@ -3,10 +3,14 @@ module Screeps.Constants where
 import Prelude
 
 import Data.Function.Uncurried (Fn2, runFn2)
+import Unsafe.Coerce (unsafeCoerce)
 
 data Code
 instance Eq Code where
   eq a b = runFn2 eqCode a b
+instance Show Code where
+  show code = show @Int (unsafeCoerce code)
+
 
 foreign import eqCode :: Fn2 Code Code Boolean
 

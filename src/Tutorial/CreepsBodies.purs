@@ -7,8 +7,8 @@ import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Screeps.Constants (attackPart, errNotInRange, healPart, rangedAttackPart)
-import Screeps.Creep (body, heal, moveTo, my, rangedAttack)
-import Screeps.Functions (attack, getObjectsByPrototype, hits, hitsMax)
+import Screeps.Creep (body, moveTo, rangedAttack)
+import Screeps.Functions (attack, getObjectsByPrototype, heal, hits, hitsMax, my)
 import Screeps.GameObjects (creepPrototype)
 
 main :: Effect Unit
@@ -23,11 +23,11 @@ main = do
         when (body creep # Array.any (\bodyPart -> bodyPart.type == attackPart)) do
           attackResult <- creep `attack` enemyCreep
           when (attackResult == errNotInRange) do
-            creep `moveTo` enemyCreep
+            void $ creep `moveTo` enemyCreep
         when (body creep # Array.any (\bodyPart -> bodyPart.type == rangedAttackPart)) do
           attackResult <- creep `rangedAttack` enemyCreep
           when (attackResult == errNotInRange) do
-            creep `moveTo` enemyCreep
+            void $ creep `moveTo` enemyCreep
         when (body creep # Array.any (\bodyPart -> bodyPart.type == healPart)) do
           let myDamagedCreeps = myCreeps # Array.filter (\i -> hits i < hitsMax i)
           case Array.head myDamagedCreeps of
@@ -36,4 +36,4 @@ main = do
             Just myDamagedCreep -> do
               healResult <- creep `heal` myDamagedCreep
               when (healResult == errNotInRange) do
-                creep `moveTo` myDamagedCreep
+                void $ creep `moveTo` myDamagedCreep

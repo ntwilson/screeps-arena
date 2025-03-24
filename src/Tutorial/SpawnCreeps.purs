@@ -27,6 +27,6 @@ main = do
 
   case findClosestByPath flag1 myCreeps of
     Just closestCreep -> do
-      closestCreep `moveTo` flag1
-      myCreeps # Array.find (_ /= closestCreep) # maybe (pure unit) (_ `moveTo` flag2)
+      void $ closestCreep `moveTo` flag1
+      myCreeps # Array.find (_ /= closestCreep) # maybe (pure unit) (void <<< (_ `moveTo` flag2))
     Nothing -> pure unit

@@ -12,9 +12,9 @@ import Screeps.GameObjects (creepPrototype, flagPrototype)
 
 main :: Effect Unit
 main = do
-    creeps <- getObjectsByPrototype(creepPrototype)
+    creeps <- getObjectsByPrototype creepPrototype
     creep <- Array.head creeps # maybe (throw "No creeps found") pure
 
     flags <- getObjectsByPrototype(flagPrototype)
     flag <- Array.head flags # maybe (throw "No flags found") pure
-    creep `moveTo` flag
+    void $ creep `moveTo` flag

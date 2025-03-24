@@ -15,6 +15,14 @@ export function rangedAttackImpl(creep, target) {
   return creep.rangedAttack(target);
 }
 
-export function healImpl(creep, target) {
-  return creep.heal(target);
+export function rangedMassAttackImpl(creep) {
+  return creep.rangedMassAttack();
+}
+
+export function rangedHealImpl(creep, target) {
+  return creep.rangedHeal(target);
+}
+
+export function harvestImpl(creep, target) {
+  return creep.harvest(target);
 }
