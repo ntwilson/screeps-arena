@@ -11,8 +11,22 @@ export function healImpl(source, target) {
   return source.heal(target);
 }
 
-export function findClosestByPathImpl(fromPos, positions) {
-  return utils.findClosestByPath(fromPos, positions);
+export function findClosestByPathImpl(just, nothing, fromPos, positions) {
+  let x = utils.findClosestByPath(fromPos, positions);
+  if (x) {
+    return just(x);
+  } else {
+    return nothing;
+  }
+}
+
+export function findClosestByRangeImpl(just, nothing, fromPos, positions) {
+  let x = utils.findClosestByRange(fromPos, positions);
+  if (x) {
+    return just(x);
+  } else {
+    return nothing;
+  }
 }
 
 export function findInRangeImpl(fromPos, positions, range) {

@@ -2,8 +2,10 @@ module Screeps.Functions where
 
 import Prelude
 
-import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
+import Control.Alt ((<|>))
+import Data.Function.Uncurried (Fn2, Fn3, Fn4, runFn2, runFn3, runFn4)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
 import Effect (Effect)
 import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
 import Foreign (Foreign, unsafeToForeign)
@@ -89,6 +91,7 @@ pos :: ∀ a. HasLocation a => a -> { x :: Int, y :: Int }
 pos a = { x: x a, y: y a }
 
 newtype Pos = Pos { x :: Int, y :: Int }
+derive instance Newtype Pos _
 instance HasLocation Pos where
   x (Pos a) = a.x
   y (Pos a) = a.y
@@ -97,13 +100,25 @@ else instance (Inherits a GameObject) => HasLocation a where
   x a = (unsafeCoerce a).x
   y a = (unsafeCoerce a).y
 
-foreign import findClosestByPathImpl :: ∀ t. Fn2 Foreign (Array Foreign) t
+foreign import findClosestByPathImpl :: ∀ t. Fn4 (t -> Maybe t) (Maybe t) Foreign (Array Foreign) (Maybe t)
 
 findClosestByPath :: ∀ s t. HasLocation s => HasLocation t => s -> Array t -> Maybe t
 findClosestByPath source targets = 
   case targets of 
     [] -> Nothing
-    _ -> Just $ runFn2 findClosestByPathImpl (unsafeToForeign source) (unsafeToForeign <$> targets)
+    _ -> runFn4 findClosestByPathImpl Just Nothing (unsafeToForeign source) (unsafeToForeign <$> targets)
+
+foreign import findClosestByRangeImpl :: ∀ t. Fn4 (t -> Maybe t) (Maybe t) Foreign (Array Foreign) (Maybe t)
+
+findClosestByRange :: ∀ s t. HasLocation s => HasLocation t => s -> Array t -> Maybe t
+findClosestByRange source targets = 
+  case targets of 
+    [] -> Nothing
+    _ -> runFn4 findClosestByRangeImpl Just Nothing (unsafeToForeign source) (unsafeToForeign <$> targets)
+
+findClosestPreferrablyByPath :: ∀ s t. HasLocation s => HasLocation t => s -> Array t -> Maybe t
+findClosestPreferrablyByPath source targets =
+  findClosestByPath source targets <|> findClosestByRange source targets
 
 findInRange :: ∀ s t. HasLocation s => HasLocation t => s -> Array t -> Int -> Array t
 findInRange source targets range = runFn3 findInRangeImpl (unsafeToForeign source) (unsafeToForeign <$> targets) range

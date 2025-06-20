@@ -10,7 +10,7 @@ import Effect (Effect)
 import Effect.Exception (throw)
 import Screeps.Constants (attackPart, errNotInRange, healPart, rangedAttackPart)
 import Screeps.Creep (body, moveTo, rangedAttack, rangedHeal, rangedMassAttack)
-import Screeps.Functions (class HasLocation, Pos(..), attack, findClosestByPath, findInRange, getObjectsByPrototype, getRange, getTicks, heal, hits, hitsMax, my, store, x, y)
+import Screeps.Functions (class HasLocation, Pos(..), attack, findClosestByPath, findClosestByRange, findClosestPreferrablyByPath, findInRange, getObjectsByPrototype, getRange, getTicks, heal, hits, hitsMax, my, pos, store, x, y)
 import Screeps.GameObjects (Creep, GameObject, creepPrototype, flagPrototype, structureTowerPrototype)
 import Screeps.Inheritance (upcast)
 import Screeps.Store (getFreeEnergyCapacity)
@@ -25,6 +25,12 @@ centerOfMass objs =
     ys = objs <#> y
   in Pos { x: sum xs / Array.length xs, y: sum ys / Array.length ys }
 
+rendezvousPoint :: Effect Pos
+rendezvousPoint = do
+  homeBase <- getObjectsByPrototype flagPrototype <#> Array.find my >>= orNotFound "home base"
+  let candidates = Pos <$> [ { x: 70, y: 70 }, { x: 30, y: 30 } ]
+  findClosestByRange homeBase candidates # orNotFound "rendezvous point"
+
 attackStrategy :: Creep -> Effect Unit
 attackStrategy creep = do
   creeps <- getObjectsByPrototype creepPrototype
@@ -32,29 +38,28 @@ attackStrategy creep = do
   homeBase <- getObjectsByPrototype flagPrototype <#> Array.find my >>= orNotFound "home base"
   flag <- getObjectsByPrototype flagPrototype <#> Array.find (not my) >>= orNotFound "enemy flag"
   ticks <- getTicks
+  rendezvous <- rendezvousPoint
 
   let 
     { yes: friends, no: enemies } = creeps # Array.partition my
     { yes: healers, no: attackers } = friends # Array.partition (body >>> map _.type >>> Array.elem healPart)
+    enemiesOutOfRangeOfTurret = enemies # Array.filter (\enemy -> getRange enemy flag > 55)
+    enemiesInRangeOfOurTurret = enemies # Array.filter (\enemy -> getRange enemy homeBase < 50)
     preferredSharedTarget = 
-      let 
-        enemiesOutOfRangeOfTurret = enemies # Array.filter (\enemy -> getRange enemy flag > 55)
-        enemiesInRangeOfOurTurret = enemies # Array.filter (\enemy -> getRange enemy homeBase < 60)
-      in
-        if ticks < 100 then
-          findClosestByPath (centerOfMass attackers) enemiesInRangeOfOurTurret
-        else
-          findClosestByPath (centerOfMass attackers) enemiesOutOfRangeOfTurret 
-          <|>
-          findClosestByPath homeBase enemiesOutOfRangeOfTurret 
+      if ticks < 100 then
+        findClosestPreferrablyByPath homeBase enemiesInRangeOfOurTurret
+        <|>
+        findClosestPreferrablyByPath (centerOfMass attackers) enemiesInRangeOfOurTurret
+      else
+        findClosestPreferrablyByPath homeBase enemiesInRangeOfOurTurret
+        <|>
+        findClosestPreferrablyByPath (centerOfMass attackers) enemiesOutOfRangeOfTurret 
+        <|> 
+        findClosestPreferrablyByPath (centerOfMass attackers) enemies
 
-    closestHealer = findClosestByPath creep ((upcast <$> towers) <> (upcast <$> healers) :: Array GameObject)
-
-    closestEnemy = findClosestByPath creep enemies
     preferredTarget = 
       let 
-        enemiesOutOfRangeOfTurret = enemies # Array.filter (\enemy -> getRange enemy flag > 55)
-        nearbyEnemies = findInRange creep enemiesOutOfRangeOfTurret 6
+        nearbyEnemies = findInRange creep enemiesOutOfRangeOfTurret 1
       in
         find (_ `Array.elem` nearbyEnemies) preferredSharedTarget
         <|> 
@@ -62,61 +67,50 @@ attackStrategy creep = do
         <|>
         findClosestByPath creep nearbyEnemies 
         <|> 
-        preferredSharedTarget
+        case preferredSharedTarget of
+          Nothing -> Nothing 
+          Just target ->
+            findClosestByPath creep [target]
+            <|>
+            findClosestByPath creep enemies
 
+    closestHealer = findClosestByPath creep ((upcast <$> towers) <> (upcast <$> healers) :: Array GameObject)
 
-  case closestEnemy of
-    Just target -> do
-      void $ creep `attack` target
-      if (findInRange creep enemies 2 # Array.length) > 2 then
-        void $ rangedMassAttack creep
+    moveTarget = 
+      if hits creep < hitsMax creep then
+        case preferredTarget of
+          Just target | getRange homeBase target < getRange homeBase creep -> homeBase # pos
+          Just _ -> closestHealer # fromMaybe (upcast homeBase) # pos
+          _ -> pos flag
       else
-        void $ creep `rangedAttack` target
-    Nothing -> pure unit
+        if Array.length friends >= Array.length enemies * 3 then
+          pos flag
+        else case preferredTarget of 
+          Just target -> pos target
+          Nothing -> pos rendezvous
 
-  if hits creep < hitsMax creep then
-    void $ creep `moveTo` (closestHealer # fromMaybe (upcast homeBase))
-  else 
-    case preferredTarget of
-      Just preferredTarget -> void $ creep `moveTo` preferredTarget
-      Nothing -> 
-        if Array.length friends > Array.length enemies * 3 then
-          void $ creep `moveTo` flag
-        else 
-          if Array.length friends < (Array.length enemies * 8 / 10) then
-            void $ creep `moveTo` homeBase
-          else
-            if ticks < 100 then
-              void $ creep `moveTo` homeBase
-            else 
-              void $ creep `moveTo` (Pos { x: 83, y: 22 })
+  void $ creep `moveTo` (Pos moveTarget)
+
+  when ((findInRange creep enemies 2 # Array.length) > 2) $
+    void $ rangedMassAttack creep
+
+  case preferredTarget of
+    Just target -> do
+      void $ creep `rangedAttack` target
+      void $ creep `attack` target
+    Nothing -> pure unit
 
 healerStrategy :: Creep -> Effect Unit
 healerStrategy creep = do
   creeps <- getObjectsByPrototype creepPrototype
-  homeBase <- getObjectsByPrototype flagPrototype <#> Array.find my >>= orNotFound "home base"
-  flag <- getObjectsByPrototype flagPrototype <#> Array.find (not my) >>= orNotFound "enemy flag"
-  ticks <- getTicks
 
   let 
-    { yes: friends, no: enemies } = creeps # Array.partition my
+    { yes: friends } = creeps # Array.partition my
     attackers = friends # Array.filter (body >>> map _.type >>> not Array.elem healPart)
-    closestHurtFriend = findClosestByPath creep (friends # Array.filter (\c -> hits c < hitsMax c))
-    preferredTarget = 
-      let 
-        enemiesOutOfRangeOfTurret = enemies # Array.filter (\enemy -> getRange enemy flag > 55)
-        hurtFriends = friends # Array.filter (\c -> hits c < hitsMax c)
-        enemiesInRangeOfOurTurret = enemies # Array.filter (\enemy -> getRange enemy homeBase < 60)
-      in
-        findClosestByPath creep hurtFriends 
-        <|>
-        if ticks < 100 then
-          findClosestByPath (centerOfMass attackers) enemiesInRangeOfOurTurret
-        else
-          findClosestByPath (centerOfMass attackers) enemiesOutOfRangeOfTurret 
-          <|>
-          findClosestByPath homeBase enemiesOutOfRangeOfTurret 
-
+    hurtFriends = friends # Array.filter (\c -> hits c < hitsMax c)
+    hurtFrindsNotMe = hurtFriends # Array.filter (_ /= creep)
+    closestHurtFriend = findClosestByPath creep hurtFriends
+    closestHurtFriendNotMe = findClosestByPath creep hurtFrindsNotMe
 
   case closestHurtFriend of
     Just target -> do
@@ -124,19 +118,9 @@ healerStrategy creep = do
         void $ creep `rangedHeal` target
     Nothing -> pure unit
 
-  case preferredTarget of
-    Just preferredTarget -> void $ creep `moveTo` preferredTarget
-    Nothing -> 
-      if Array.length friends > Array.length enemies * 3 then
-        void $ creep `moveTo` flag
-      else 
-        if Array.length friends < (Array.length enemies * 8 / 10) then
-          void $ creep `moveTo` homeBase
-        else
-          if ticks < 100 then
-            void $ creep `moveTo` homeBase
-          else 
-            void $ creep `moveTo` (Pos { x: 83, y: 22 })
+  case closestHurtFriendNotMe of
+    Just target -> void $ creep `moveTo` target
+    Nothing -> void $ creep `moveTo` (centerOfMass attackers)
 
 
 main :: Effect Unit
@@ -161,8 +145,8 @@ main = do
       shortRangeTargets = findInRange tower potentialTargets 25
       longRangeTarget = longRangeTargets # minimumBy (comparing (targetingScore tower))
       shortRangeTarget = shortRangeTargets # minimumBy (comparing (targetingScore tower))
-      target = shortRangeTarget <|> if getFreeEnergyCapacity (store tower) == 0 then Nothing else longRangeTarget
-    case target of
+      preferredTarget = shortRangeTarget <|> if getFreeEnergyCapacity (store tower) == 0 then longRangeTarget else Nothing
+    case preferredTarget of
       Just target
         | my target -> void $ tower `heal` target
         | otherwise -> void $ tower `attack` target
@@ -175,5 +159,5 @@ main = do
       distance = getRange tower creep
       health = hits creep
     in
-      distance * distance + health * health
+      distance * distance * distance + health
 
